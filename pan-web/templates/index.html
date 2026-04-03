@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAN Vault — Card Encryption Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #080808;
+  --surface:   #111111;
+  --surface2:  #181818;
+  --border:    #222222;
+  --gold:      #c9a84c;
+  --gold-dim:  #7a6430;
+  --gold-glow: rgba(201,168,76,.12);
+  --text:      #e2e2e2;
+  --text-dim:  #666;
+  --green:     #4caf7a;
+  --red:       #c94c4c;
+  --mono:      'JetBrains Mono', monospace;
+  --serif:     'Playfair Display', serif;
+  --sans:      'DM Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── background grid ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(201,168,76,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,168,76,.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── layout ── */
+.shell { position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* ── header ── */
+header {
+  padding: 52px 0 44px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+}
+.logo-mark {
+  width: 42px; height: 42px;
+  border: 1.5px solid var(--gold);
+  border-radius: 4px;
+  display: grid; place-items: center;
+  font-family: var(--serif); font-size: 22px; color: var(--gold);
+  flex-shrink: 0;
+  box-shadow: 0 0 18px var(--gold-glow);
+}
+.header-text h1 {
+  font-family: var(--serif);
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 700;
+  letter-spacing: -.5px;
+  color: #fff;
+}
+.header-text p {
+  font-size: 13px; color: var(--text-dim); margin-top: 4px; letter-spacing: .3px;
+}
+.vault-badge {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--gold-dim);
+  border: 1px solid var(--border); padding: 6px 14px; border-radius: 20px;
+}
+.vault-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+/* ── section grid ── */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+/* ── card panels ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.panel:hover { border-color: #2a2a2a; }
+.panel-head {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.panel-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--gold-glow);
+  border: 1px solid var(--gold-dim);
+  display: grid; place-items: center; font-size: 13px; flex-shrink: 0;
+}
+.panel-head h2 {
+  font-family: var(--serif); font-size: 15px; font-weight: 600; color: #fff; letter-spacing: .2px;
+}
+.panel-head p { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.panel-body { padding: 20px 22px; }
+
+/* ── form elements ── */
+label { display: block; font-size: 11px; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+input[type=text] {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: var(--mono); font-size: 14px; font-weight: 500;
+  padding: 11px 14px; outline: none; letter-spacing: 2px;
+  transition: border-color .2s, box-shadow .2s;
+}
+input[type=text]:focus {
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+input[type=text]::placeholder { color: #333; letter-spacing: 1px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 20px; border-radius: 8px; font-family: var(--sans);
+  font-size: 13px; font-weight: 500; cursor: pointer; border: none;
+  transition: all .2s; letter-spacing: .2px;
+}
+.btn-gold {
+  background: var(--gold); color: #000;
+  box-shadow: 0 0 20px rgba(201,168,76,.25);
+}
+.btn-gold:hover { background: #d4b355; box-shadow: 0 0 28px rgba(201,168,76,.4); transform: translateY(-1px); }
+.btn-outline {
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-outline:hover { border-color: var(--gold-dim); color: var(--gold); }
+.btn-danger { background: transparent; color: var(--red); border: 1px solid #3a1a1a; font-size: 11px; padding: 5px 11px; }
+.btn-danger:hover { background: #1f0a0a; border-color: var(--red); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+.btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+/* ── result boxes ── */
+.result-box {
+  margin-top: 16px; border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+.result-box.success { border-color: #1e3a2a; }
+.result-box.error   { border-color: #3a1a1a; }
+
+.result-head {
+  padding: 8px 14px; font-size: 11px; font-weight: 500; letter-spacing: .5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.result-box.success .result-head { background: #0d2018; color: var(--green); }
+.result-box.error   .result-head { background: #1f0a0a; color: var(--red); }
+
+.result-grid { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.result-row { display: flex; flex-direction: column; gap: 3px; }
+.result-label { font-size: 10px; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); }
+.result-val {
+  font-family: var(--mono); font-size: 12px; color: var(--text);
+  word-break: break-all; line-height: 1.5;
+}
+.result-val.gold { color: var(--gold); font-size: 14px; font-weight: 500; letter-spacing: 2px; }
+.result-val.scheme-badge {
+  display: inline-flex; align-items: center;
+  background: var(--gold-glow); border: 1px solid var(--gold-dim);
+  color: var(--gold); padding: 2px 10px; border-radius: 20px;
+  font-size: 11px; letter-spacing: 1px; font-weight: 500;
+}
+
+/* ── pan reveal ── */
+.pan-reveal {
+  background: var(--surface2); border-radius: 10px; padding: 16px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  border: 1px solid #1e3a2a; margin-top: 4px;
+}
+.pan-number { font-family: var(--mono); font-size: 20px; font-weight: 500; color: #fff; letter-spacing: 4px; }
+.countdown {
+  font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 5px;
+}
+.countdown-ring {
+  width: 26px; height: 26px;
+  position: relative; flex-shrink: 0;
+}
+.countdown-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.countdown-ring circle { fill: none; stroke: var(--border); stroke-width: 2.5; }
+.countdown-ring .track { stroke: var(--gold); stroke-dasharray: 63; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+.countdown-num {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 9px; color: var(--gold); font-weight: 500;
+}
+
+/* ── vault table ── */
+.vault-wrap { grid-column: 1 / -1; }
+.vault-table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left; padding: 10px 14px;
+  font-size: 10px; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim);
+  border-bottom: 1px solid var(--border); font-weight: 500;
+}
+tbody tr { border-bottom: 1px solid #141414; transition: background .15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #141414; }
+td { padding: 11px 14px; vertical-align: middle; }
+td.mono { font-family: var(--mono); font-size: 12px; color: #999; }
+td.masked { font-family: var(--mono); font-size: 13px; color: var(--text); letter-spacing: 1.5px; }
+.scheme-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; letter-spacing: .5px;
+}
+.chip-visa       { background: #0d1a3a; color: #4a90d9; border: 1px solid #1a3060; }
+.chip-mastercard { background: #1f0f00; color: #d97a3a; border: 1px solid #3a1e00; }
+.chip-amex       { background: #001a1a; color: #3ab8a8; border: 1px solid #003333; }
+.chip-discover   { background: #1a0a00; color: #e8a020; border: 1px solid #3a2000; }
+.chip-unknown    { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+
+.empty-vault {
+  text-align: center; padding: 48px 24px;
+  font-size: 13px; color: var(--text-dim);
+}
+.empty-vault .big { font-size: 32px; margin-bottom: 8px; opacity: .3; }
+
+/* ── toast ── */
+#toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 999;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 18px; font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  transform: translateY(20px); opacity: 0;
+  transition: all .3s ease;
+  pointer-events: none;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.ok   { border-color: #1e3a2a; color: var(--green); }
+#toast.err  { border-color: #3a1a1a; color: var(--red); }
+
+/* ── divider ── */
+.section-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--gold-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── loading spinner ── */
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,.3); border-top-color: #000; border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <header>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="logo-mark">V</div>
+      <div class="header-text">
+        <h1>PAN Vault</h1>
+        <p>AES-256-GCM · Tokenization · PCI-DSS Masking</p>
+      </div>
+    </div>
+    <div class="vault-badge">
+      <span class="dot"></span>
+      <span id="vault-count">0</span>&nbsp;tokens stored
+    </div>
+  </header>
+
+  <!-- Row 1: Encrypt + Decrypt -->
+  <div class="section-label">Operations</div>
+  <div class="grid" style="margin-bottom:24px">
+
+    <!-- Encrypt -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-icon">🔒</div>
+        <div>
+          <h2>Encrypt Card</h2>
+          <p>Tokenize a PAN — raw number never stored</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <label for="pan-input">Primary Account Number (PAN)</label>
+        <input type="text" id="pan-input" placeholder="4111 1111 1111 1111" maxlength="19" autocomplete="off">
+        <div class="btn-row">
+          <button class="btn btn-gold" id="encrypt-btn" onclick="doEncrypt()">
+            <span id="enc-btn-inner">Tokenize Card</span>
+          </button>
+          <button class="btn btn-outline" onclick="loadDemo()">Try demo card</button>
+        </div>
+        <div id="encrypt-result"></div>
+      </div>
+    </div>
+
+    <!-- Decrypt -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-icon">🔓</div>
+        <div>
+          <h2>Reveal PAN</h2>
+          <p>Decrypt by token — auto-hides after 10 s</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <label for="token-input">Token (UUID)</label>
+        <input type="text" id="token-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+        <div class="btn-row">
+          <button class="btn btn-gold" id="decrypt-btn" onclick="doDecrypt()">
+            <span id="dec-btn-inner">Reveal PAN</span>
+          </button>
+        </div>
+        <div id="decrypt-result"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Vault table -->
+  <div class="section-label">Token Vault</div>
+  <div class="panel vault-wrap">
+    <div class="panel-head" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="panel-icon">🗄</div>
+        <div>
+          <h2>Vault Contents</h2>
+          <p>No raw PAN is ever stored here</p>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 14px" onclick="loadVault()">↺ Refresh</button>
+    </div>
+    <div class="vault-table-wrap">
+      <div id="vault-body"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+const DEMO_CARDS = [
+  "4111111111111111",
+  "5500005555555559",
+  "378282246310005",
+  "6011111111111117",
+];
+let demoIdx = 0;
+
+function loadDemo() {
+  document.getElementById("pan-input").value = DEMO_CARDS[demoIdx % DEMO_CARDS.length];
+  demoIdx++;
+}
+
+// ── format PAN input with spaces ──────────────────────────────────────────────
+document.getElementById("pan-input").addEventListener("input", e => {
+  let v = e.target.value.replace(/\D/g, "").slice(0, 19);
+  e.target.value = v;
+});
+
+// ── Encrypt ───────────────────────────────────────────────────────────────────
+async function doEncrypt() {
+  const pan = document.getElementById("pan-input").value.trim();
+  if (!pan) { toast("Enter a PAN first", "err"); return; }
+
+  const btn = document.getElementById("encrypt-btn");
+  btn.disabled = true;
+  document.getElementById("enc-btn-inner").innerHTML = '<span class="spin"></span>';
+
+  const res  = await fetch("/api/tokenize", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ pan })
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  document.getElementById("enc-btn-inner").textContent = "Tokenize Card";
+
+  if (!res.ok) {
+    document.getElementById("encrypt-result").innerHTML = errBox(data.error);
+    return;
+  }
+
+  document.getElementById("encrypt-result").innerHTML = `
+    <div class="result-box success">
+      <div class="result-head">✓ Token issued — copy it to use for decryption</div>
+      <div class="result-grid">
+        <div class="result-row">
+          <span class="result-label">Token</span>
+          <span class="result-val gold" style="cursor:pointer" onclick="copyToken('${data.token}')" title="Click to copy">${data.token}</span>
+        </div>
+        <div class="result-row" style="flex-direction:row;gap:24px;flex-wrap:wrap">
+          <div>
+            <span class="result-label">Masked PAN</span>
+            <span class="result-val" style="letter-spacing:2px">${data.masked_pan}</span>
+          </div>
+          <div>
+            <span class="result-label">Scheme</span>
+            <span class="result-val"><span class="scheme-badge">${data.card_scheme}</span></span>
+          </div>
+        </div>
+        <div class="result-row">
+          <span class="result-label">IV (Base64)</span>
+          <span class="result-val" style="color:#666">${data.iv}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Ciphertext (Base64)</span>
+          <span class="result-val" style="color:#666">${data.cipher_text}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Auth Tag (Base64)</span>
+          <span class="result-val" style="color:#666">${data.auth_tag}</span>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById("pan-input").value = "";
+  // auto-fill token field
+  document.getElementById("token-input").value = data.token;
+  loadVault();
+}
+
+// ── Decrypt ───────────────────────────────────────────────────────────────────
+let hideTimer = null;
+
+async function doDecrypt() {
+  const token = document.getElementById("token-input").value.trim();
+  if (!token) { toast("Enter a token first", "err"); return; }
+
+  const btn = document.getElementById("decrypt-btn");
+  btn.disabled = true;
+  document.getElementById("dec-btn-inner").innerHTML = '<span class="spin" style="border-top-color:#000"></span>';
+
+  const res  = await fetch("/api/detokenize", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ token })
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  document.getElementById("dec-btn-inner").textContent = "Reveal PAN";
+
+  if (!res.ok) {
+    document.getElementById("decrypt-result").innerHTML = errBox(data.error);
+    return;
+  }
+
+  // Show with 10-second countdown
+  clearTimeout(hideTimer);
+  showPan(data.pan);
+}
+
+function showPan(pan) {
+  const circ = 2 * Math.PI * 10;  // r=10
+  document.getElementById("decrypt-result").innerHTML = `
+    <div class="result-box success" id="pan-reveal-box">
+      <div class="result-head">✓ PAN revealed — auto-hides in <span id="cd-text">10</span>s</div>
+      <div style="padding:14px 14px 16px">
+        <div class="pan-reveal">
+          <span class="pan-number" id="revealed-pan">${formatPan(pan)}</span>
+          <div class="countdown">
+            <div class="countdown-ring">
+              <svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="10"/><circle class="track" id="cd-ring" cx="13" cy="13" r="10" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="0"/></svg>
+              <div class="countdown-num" id="cd-num">10</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  let seconds = 10;
+  const total = 2 * Math.PI * 10;
+  const tick = setInterval(() => {
+    seconds--;
+    const offset = total * (1 - seconds / 10);
+    const el = document.getElementById("cd-ring");
+    const numEl = document.getElementById("cd-num");
+    const textEl = document.getElementById("cd-text");
+    if (!el) { clearInterval(tick); return; }
+    el.style.strokeDashoffset = offset.toFixed(2);
+    if (numEl) numEl.textContent = seconds;
+    if (textEl) textEl.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(tick);
+      const box = document.getElementById("pan-reveal-box");
+      if (box) {
+        box.style.transition = "opacity .5s";
+        box.style.opacity = "0";
+        setTimeout(() => {
+          document.getElementById("decrypt-result").innerHTML = `
+            <div class="result-box" style="border-color:#1a1a1a">
+              <div class="result-head" style="background:#111;color:#444">⊘ PAN hidden for security</div>
+            </div>`;
+        }, 500);
+      }
+    }
+  }, 1000);
+}
+
+function formatPan(pan) {
+  return pan.replace(/(.{4})/g, "$1 ").trim();
+}
+
+// ── Vault ─────────────────────────────────────────────────────────────────────
+async function loadVault() {
+  const res  = await fetch("/api/vault");
+  const data = await res.json();
+
+  document.getElementById("vault-count").textContent = data.length;
+
+  if (data.length === 0) {
+    document.getElementById("vault-body").innerHTML = `
+      <div class="empty-vault">
+        <div class="big">🗄</div>
+        No tokens yet — encrypt a card above
+      </div>`;
+    return;
+  }
+
+  const rows = data.map(r => `
+    <tr>
+      <td class="mono" style="cursor:pointer;color:#666" onclick="copyToken('${r.token}')" title="Click to copy">${r.token}</td>
+      <td class="masked">${r.masked_pan}</td>
+      <td><span class="scheme-chip chip-${r.card_scheme.toLowerCase()}">${r.card_scheme}</span></td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-outline" style="font-size:11px;padding:5px 11px" onclick="useToken('${r.token}')">↓ Use</button>
+          <button class="btn btn-danger" onclick="doRevoke('${r.token}')">✕ Revoke</button>
+        </div>
+      </td>
+    </tr>`).join("");
+
+  document.getElementById("vault-body").innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Token</th><th>Masked PAN</th><th>Scheme</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function doRevoke(token) {
+  const res = await fetch(`/api/revoke/${token}`, { method: "DELETE" });
+  if (res.ok) {
+    toast("Token revoked", "ok");
+    loadVault();
+    if (document.getElementById("token-input").value === token) {
+      document.getElementById("token-input").value = "";
+      document.getElementById("decrypt-result").innerHTML = "";
+    }
+  } else {
+    toast("Revoke failed", "err");
+  }
+}
+
+function useToken(token) {
+  document.getElementById("token-input").value = token;
+  document.getElementById("token-input").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function copyToken(token) {
+  navigator.clipboard.writeText(token).then(() => toast("Token copied", "ok"));
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function errBox(msg) {
+  return `<div class="result-box error">
+    <div class="result-head">✕ ${msg}</div>
+  </div>`;
+}
+
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById("toast");
+  el.textContent = (type === "ok" ? "✓ " : "✕ ") + msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = "", 2800);
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+loadVault();
+</script>
+</body>
+</html>
